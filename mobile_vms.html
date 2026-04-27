@@ -74,7 +74,13 @@
             width: 100%; background: #000; position: relative; display: flex; justify-content: center; overflow: hidden;
             flex-shrink: 0; height: 35vh;
         }
-        video { height: 100%; width: auto; }
+        /* บังคับให้กล้องกางเต็มพื้นที่ 100% เสมอ และไม่ผิดเพี้ยน */
+        video { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; /* ให้ภาพซูมเต็มกรอบอัตโนมัติ โดยไม่เบี้ยว */
+            background-color: #000;
+        }
         #status {
             position: absolute; bottom: 10px; left: 0; width: 100%; text-align: center;
             color: white; font-size: 12px; background: rgba(0,0,0,0.5); padding: 4px 0;
