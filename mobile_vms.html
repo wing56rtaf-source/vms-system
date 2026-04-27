@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VMS Mobile - ระบบจัดการผู้มาติดต่อ</title>
+    <!-- Load AI Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --gray: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Sarabun', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f1f5f9;
+            color: var(--dark);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- Login Screen --- */
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            display: flex; justify-content: center; align-items: center; z-index: 10000;
+        }
+        .login-box {
+            background: white; padding: 30px; border-radius: 16px; width: 85%; max-width: 350px; text-align: center;
+        }
+        .login-box h2 { margin-bottom: 20px; font-size: 22px; }
+        .login-box input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; }
+
+        /* --- Main Layout --- */
+        #main-app { display: none; flex-direction: column; height: 100%; }
+
+        header {
+            background: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10;
+        }
+        header h1 { font-size: 18px; margin: 0; color: var(--primary); }
+
+        .btn-logout { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+
+        /* Camera Area */
+        .camera-section {
+            width: 100%; background: #000; position: relative; display: flex; justify-content: center; overflow: hidden;
+            flex-shrink: 0; height: 35vh;
+        }
+        video { height: 100%; width: auto; }
+        #status {
+            position: absolute; bottom: 10px; left: 0; width: 100%; text-align: center;
+            color: white; font-size: 12px; background: rgba(0,0,0,0.5); padding: 4px 0;
+        }
+        .btn-switch-cam {
+            position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.2);
+            color: white; border: none; padding: 8px; border-radius: 50%;
+        }
+        #capturedPreview {
+            position: absolute; bottom: 35px; left: 10px; width: 60px; height: 60px;
+            border-radius: 50%; border: 2px solid var(--success); object-fit: cover; display: none;
+        }
+
+        /* Content Area */
+        .content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 80px; }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 5px; color: var(--gray); }
+        input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 16px; font-family: 'Sarabun'; }
+
+        button {
+            width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 600; font-size: 16px;
+            margin-bottom: 10px; font-family: 'Sarabun';
+        }
+        .btn-main { background: var(--primary); color: white; }
+        .btn-secondary { background: white; border: 1px solid var(--border); color: var(--dark); }
+        .btn-success { background: var(--success); color: white; margin-top: 10px; }
+        .btn-danger { background: var(--danger); color: white; }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed; bottom: 0; width: 100%; background: white; display: flex;
+            border-top: 1px solid var(--border); height: 65px; z-index: 100;
+        }
+        .nav-item {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 11px; color: var(--gray); cursor: pointer;
+        }
+        .nav-item.active { color: var(--primary); }
+        .nav-item i { font-size: 20px; margin-bottom: 2px; }
+
+        /* Search Results Card */
+        .card { background: white; padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-top: 10px; }
+        .history-item { border-bottom: 1px solid #f1f5f9; padding: 10px 0; font-size: 13px; }
+        .history-item:last-child { border-bottom: none; }
+        .status-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; float: right; }
+
+        .divider { text-align: center; color: var(--gray); margin: 15px 0; font-size: 12px; position: relative; }
+        .divider::after { content: ""; position: absolute; top: 50%; width: 100%; height: 1px; background: var(--border); left: 0; z-index: -1; }
+        .divider span { background: #f1f5f9; padding: 0 10px; }
+    </style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen">
+    <div class="login-box">
+        <h2>VMS Mobile</h2>
+        <input type="text" id="loginUsername" placeholder="ชื่อผู้ใช้">
+        <input type="password" id="loginPassword" placeholder="รหัสผ่าน">
+        <button class="btn-main" id="btnLogin" onclick="doLogin()">เข้าสู่ระบบ</button>
+        <div id="loginStatus" style="color:var(--danger); font-size:13px; margin-top:10px;"></div>
+    </div>
+</div>
+
+<!-- Main App -->
+<div id="main-app">
+    <header>
+        <h1>Visitor Management</h1>
+        <button class="btn-logout" onclick="doLogout()">ออก</button>
+    </header>
+
+    <div class="camera-section">
+        <video id="video" autoplay playsinline></video>
+        <button class="btn-switch-cam" onclick="switchCamera()">🔄</button>
+        <img id="capturedPreview" />
+        <div id="status">ระบบพร้อมใช้งาน</div>
+        <canvas id="canvas" style="display:none;"></canvas>
+    </div>
+
+    <div class="content">
+        <!-- Check-in Form -->
+        <div id="pane-in">
+            <button class="btn-secondary" onclick="runOCR()">🔍 สแกนบัตร (คนใหม่)</button>
+            <button class="btn-secondary" style="background:#e0f2fe" onclick="identifyFace('checkin')">📸 สแกนหน้า (คนเดิม)</button>
+            
+            <div class="divider"><span>ข้อมูลผู้ติดต่อ</span></div>
+            
+            <div class="form-group">
+                <input type="text" id="idCard" placeholder="เลขบัตรประชาชน">
+            </div>
+            <div class="form-group">
+                <input type="text" id="fullName" placeholder="ชื่อ-นามสกุล">
+            </div>
+            <div class="form-group">
+                <input type="text" id="destination" placeholder="ไปติดต่อที่ไหน/พบใคร">
+            </div>
+            
+            <button class="btn-main" onclick="takePhoto()">📸 ถ่ายภาพยืนยัน</button>
+            <button class="btn-success" onclick="submitData('checkin')">✅ บันทึกเข้าพื้นที่</button>
+        </div>
+
+        <!-- Check-out Form -->
+        <div id="pane-out" style="display:none;">
+            <button class="btn-main" onclick="identifyFace('checkout')">📸 สแกนหน้าเพื่อออก</button>
+            <div class="divider"><span>หรือ</span></div>
+            <button class="btn-secondary" onclick="runOCR()">🔍 สแกนบัตรเพื่อออก</button>
+            
+            <div class="card" id="out-info" style="display:none;">
+                <p style="margin:0 0 10px 0; font-weight:600;">ข้อมูลผู้ที่จะออก:</p>
+                <div id="display-info" style="font-size:14px; color:var(--gray);"></div>
+                <input type="hidden" id="idCardOut">
+                <button class="btn-danger" style="margin-top:15px;" onclick="submitData('checkout')">🚪 ยืนยันการออก</button>
+            </div>
+        </div>
+
+        <!-- History Search -->
+        <div id="pane-search" style="display:none;">
+            <button class="btn-main" onclick="identifyFace('search')">📸 ค้นหาด้วยใบหน้า</button>
+            <div class="divider"><span>หรือ</span></div>
+            <div class="form-group">
+                <input type="text" id="searchId" placeholder="เลขบัตรประชาชน 13 หลัก">
+                <button class="btn-secondary" style="margin-top:10px;" onclick="searchById()">🔍 ค้นหา</button>
+            </div>
+
+            <div id="search-results" style="display:none;">
+                <div class="card" style="background:var(--primary); color:white; border:none;">
+                    <h3 id="resName" style="margin:0;"></h3>
+                    <p id="resId" style="margin:5px 0 0 0; font-size:12px; opacity:0.8;"></p>
+                </div>
+                <div id="resList" style="margin-top:10px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" id="nav-in" onclick="switchPane('in')">
+            <span>📥</span><span>เช็คอิน</span>
+        </div>
+        <div class="nav-item" id="nav-out" onclick="switchPane('out')">
+            <span>📤</span><span>เช็คเอาต์</span>
+        </div>
+        <div class="nav-item" id="nav-search" onclick="switchPane('search')">
+            <span>🔍</span><span>ประวัติ</span>
+        </div>
+    </nav>
+</div>
+
+<script>
+    // 🔴 เปลี่ยนเป็น URL ของคุณ 🔴
+    const API_URL = "https://script.google.com/macros/s/AKfycbz-xVzLgx_xYmjkmdy_nwLf0mIJjGEWYznv8o374DK5QO-QXioo5oRK-f-OlsempjzE/exec";
+
+    let videoStream, currentCameraIndex = 0, videoDevices = [], capturedBase64 = "", currentFaceDescriptor = [], isAIReady = false;
+
+    // --- Authentication ---
+    window.onload = () => {
+        if (sessionStorage.getItem("vms_auth") === "true") showApp();
+    };
+
+    async function doLogin() {
+        const u = document.getElementById('loginUsername').value;
+        const p = document.getElementById('loginPassword').value;
+        const btn = document.getElementById('btnLogin');
+        if(!u || !p) return;
+        btn.disabled = true; btn.innerText = "รอสักครู่...";
+        try {
+            const r = await fetch(API_URL, { method:"POST", body: JSON.stringify({action:"login", username:u, password:p}) });
+            const res = await r.json();
+            if(res.status === "success") {
+                sessionStorage.setItem("vms_auth", "true");
+                sessionStorage.setItem("vms_token", res.token);
+                showApp();
+            } else {
+                document.getElementById('loginStatus').innerText = res.message;
+                btn.disabled = false; btn.innerText = "เข้าสู่ระบบ";
+            }
+        } catch(e) { alert("เชื่อมต่อไม่ได้"); btn.disabled = false; }
+    }
+
+    function doLogout() {
+        sessionStorage.clear(); location.reload();
+    }
+
+    function showApp() {
+        document.getElementById('login-screen').style.display = "none";
+        document.getElementById('main-app').style.display = "flex";
+        initCamera(); loadAI();
+    }
+
+    // --- UI Logic ---
+    function switchPane(p) {
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById('nav-'+p).classList.add('active');
+        document.getElementById('pane-in').style.display = p === 'in' ? 'block' : 'none';
+        document.getElementById('pane-out').style.display = p === 'out' ? 'block' : 'none';
+        document.getElementById('pane-search').style.display = p === 'search' ? 'block' : 'none';
+        
+        // Reset state
+        document.getElementById('capturedPreview').style.display = "none";
+        document.getElementById('status').innerText = isAIReady ? "ระบบพร้อมใช้งาน" : "กำลังโหลด AI...";
+        document.querySelectorAll('input').forEach(i => i.value = "");
+        document.getElementById('out-info').style.display = "none";
+        document.getElementById('search-results').style.display = "none";
+    }
+
+    // --- Core Functions ---
+    async function initCamera(id = null) {
+        if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+        const constraints = { video: id ? { deviceId: { exact: id } } : { facingMode: "environment" } }; // Default to back cam for OCR
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+            document.getElementById('video').srcObject = videoStream;
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            videoDevices = devices.filter(d => d.kind === 'videoinput');
+        } catch (err) { alert("เปิดกล้องไม่ได้"); }
+    }
+
+    function switchCamera() {
+        currentCameraIndex = (currentCameraIndex + 1) % videoDevices.length;
+        initCamera(videoDevices[currentCameraIndex].deviceId);
+    }
+
+    async function loadAI() {
+        const MODEL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+        try {
+            await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL), faceapi.nets.faceLandmark68Net.loadFromUri(MODEL), faceapi.nets.faceRecognitionNet.loadFromUri(MODEL)]);
+            isAIReady = true; document.getElementById('status').innerText = "AI พร้อมใช้งาน";
+        } catch (e) { document.getElementById('status').innerText = "AI โหลดไม่สำเร็จ"; }
+    }
+
+    async function runOCR() {
+        const c = document.getElementById('canvas');
+        c.width = video.videoWidth; c.height = video.videoHeight;
+        c.getContext('2d').drawImage(video, 0, 0);
+        document.getElementById('status').innerText = "⏳ กำลังสแกนบัตร...";
+        try {
+            const res = await Tesseract.recognize(c.toDataURL(), 'tha+eng');
+            const txt = res.data.text;
+            const idMatch = txt.match(/[0-9]{13}/) || txt.match(/[0-9]\s?[0-9]{4}\s?[0-9]{5}\s?[0-9]{2}\s?[0-9]/);
+            const id = idMatch ? idMatch[0].replace(/\s/g, '') : "";
+            
+            if(document.getElementById('pane-in').style.display !== 'none') {
+                document.getElementById('idCard').value = id;
+                for(let l of txt.split('\n')) if(["นาย","นาง","ด.ช.","ด.ญ."].some(p => l.includes(p))) { 
+                    document.getElementById('fullName').value = l.replace(/ชื่อตัว|และชื่อสกุล|Name|:/gi,'').trim(); break; 
+                }
+            } else {
+                document.getElementById('idCardOut').value = id;
+                document.getElementById('display-info').innerHTML = `<b>เลขบัตร:</b> ${id}`;
+                document.getElementById('out-info').style.display = "block";
+            }
+            document.getElementById('status').innerText = "✅ สแกนเสร็จ";
+        } catch(e) { alert("อ่านบัตรไม่สำเร็จ"); }
+    }
+
+    async function takePhoto() {
+        if(!isAIReady) return;
+        const c = document.getElementById('canvas');
+        c.width = video.videoWidth; c.height = video.videoHeight;
+        c.getContext('2d').drawImage(video, 0, 0);
+        capturedBase64 = c.toDataURL('image/jpeg', 0.8);
+        const p = document.getElementById('capturedPreview');
+        p.src = capturedBase64; p.style.display = "block";
+        document.getElementById('status').innerText = "⏳ วิเคราะห์หน้า...";
+        const det = await faceapi.detectSingleFace(c, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+        if(det) { currentFaceDescriptor = Array.from(det.descriptor); document.getElementById('status').innerText = "✅ ตรวจพบหน้า"; }
+        else { alert("ไม่พบใบหน้า"); currentFaceDescriptor = []; }
+    }
+
+    async function identifyFace(mode) {
+        if(!isAIReady) return;
+        const c = document.getElementById('canvas');
+        c.width = video.videoWidth; c.height = video.videoHeight;
+        c.getContext('2d').drawImage(video, 0, 0);
+        const det = await faceapi.detectSingleFace(c, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+        if(!det) return alert("ไม่เห็นหน้า");
+
+        const action = mode === 'search' ? 'search_history' : 'find_user_by_face';
+        document.getElementById('status').innerText = "⏳ ค้นหาข้อมูล...";
+        
+        try {
+            const r = await fetch(API_URL, { method:"POST", body: JSON.stringify({
+                action: action, faceDescriptor: Array.from(det.descriptor), token: sessionStorage.getItem("vms_token")
+            })});
+            const res = await r.json();
+            if(res.status === "success") {
+                if(mode === 'checkin') {
+                    document.getElementById('idCard').value = res.idCard;
+                    document.getElementById('fullName').value = res.fullName;
+                    document.getElementById('destination').value = res.destination;
+                    capturedBase64 = c.toDataURL('image/jpeg', 0.8);
+                    currentFaceDescriptor = Array.from(det.descriptor);
+                    document.getElementById('status').innerText = "✅ ดึงข้อมูลสำเร็จ";
+                } else if (mode === 'checkout') {
+                    document.getElementById('display-info').innerHTML = `<b>ชื่อ:</b> ${res.fullName}<br><b>สถานที่:</b> ${res.destination}`;
+                    document.getElementById('idCardOut').value = res.idCard;
+                    document.getElementById('out-info').style.display = "block";
+                } else if (mode === 'search') {
+                    showHistory(res);
+                }
+            } else {
+                alert(res.message); if(res.message.includes("UNAUTHORIZED")) doLogout();
+            }
+        } catch(e) { alert("เชื่อมต่อผิดพลาด"); }
+    }
+
+    async function submitData(action) {
+        const data = { action: action, token: sessionStorage.getItem("vms_token") };
+        if(action === 'checkin') {
+            data.idCard = document.getElementById('idCard').value;
+            data.fullName = document.getElementById('fullName').value;
+            data.destination = document.getElementById('destination').value;
+            data.image = capturedBase64;
+            data.faceDescriptor = currentFaceDescriptor;
+            if(!data.idCard || !capturedBase64) return alert("ข้อมูลไม่ครบ");
+        } else {
+            data.idCard = document.getElementById('idCardOut').value;
+        }
+
+        document.getElementById('status').innerText = "⏳ บันทึกข้อมูล...";
+        try {
+            const r = await fetch(API_URL, { method:"POST", body: JSON.stringify(data) });
+            const res = await r.json();
+            if(res.status === "success") {
+                alert(action === 'checkin' ? "เช็คอินสำเร็จ!" : "เช็คเอาต์สำเร็จ!");
+                switchPane('in');
+            } else alert(res.message);
+        } catch(e) { alert("บันทึกล้มเหลว"); }
+    }
+
+    function searchById() {
+        const id = document.getElementById('searchId').value.trim();
+        if(!id) return;
+        fetchSearch({ action: "search_history", idCard: id, token: sessionStorage.getItem("vms_token") });
+    }
+
+    async function fetchSearch(p) {
+        try {
+            const r = await fetch(API_URL, { method:"POST", body: JSON.stringify(p) });
+            const res = await r.json();
+            if(res.status === "success") showHistory(res);
+            else alert(res.message);
+        } catch(e) { alert("ค้นหาล้มเหลว"); }
+    }
+
+    function showHistory(data) {
+        document.getElementById('resName').innerText = data.fullName;
+        document.getElementById('resId').innerText = "เลขบัตร: " + data.idCard;
+        const list = document.getElementById('resList');
+        list.innerHTML = "";
+        data.history.forEach(h => {
+            const time = (t) => t ? new Date(t).toLocaleString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : "-";
+            list.innerHTML += `<div class="card history-item">
+                <span class="status-badge" style="background:${h.status==='IN'?'#fee2e2':'#dcfce7'}">${h.status}</span>
+                <b>📍 ${h.destination}</b><br>
+                <small>เข้า: ${time(h.timeIn)} | ออก: ${time(h.timeOut)}</small>
+            </div>`;
+        });
+        document.getElementById('search-results').style.display = "block";
+        document.getElementById('status').innerText = "✅ ค้นหาสำเร็จ";
+    }
+</script>
+</body>
+</html>
