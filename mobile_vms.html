@@ -52,7 +52,22 @@
         }
         header h1 { font-size: 18px; margin: 0; color: var(--primary); }
 
-        .btn-logout { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+        /* ปรับปุ่ม Logout ให้กลับมาเล็กกะทัดรัด */
+        .btn-logout { 
+            width: auto !important; /* บังคับไม่ให้ปุ่มกว้าง 100% */
+            padding: 4px 12px !important; /* ลดระยะขอบด้านใน */
+            font-size: 11px !important; /* ลดขนาดตัวอักษร */
+            border-radius: 15px !important;
+            background: transparent;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            margin: 0 !important; /* เอา margin ที่ล้นๆ ออก */
+            line-height: 1.5;
+        }
+        .btn-logout:hover { 
+            background: var(--danger); 
+            color: white; 
+        }
 
         /* Camera Area */
         .camera-section {
@@ -265,16 +280,59 @@
         document.getElementById('search-results').style.display = "none";
     }
 
-    // --- Core Functions ---
+	// --- Core Functions (ระบบจัดการกล้องฉบับแก้ปัญหาเลนส์ 0.5x) ---
     async function initCamera(id = null) {
         if (videoStream) videoStream.getTracks().forEach(t => t.stop());
-        const constraints = { video: id ? { deviceId: { exact: id } } : { facingMode: "environment" } }; // Default to back cam for OCR
+        
         try {
+            // 1. ขอสิทธิ์เบื้องต้นเพื่อให้เบราว์เซอร์ยอมเปิดเผย "ชื่อเลนส์กล้อง" (Labels)
+            if (videoDevices.length === 0 || videoDevices[0].label === "") {
+                const tempStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                tempStream.getTracks().forEach(t => t.stop());
+                
+                // โหลดรายการอุปกรณ์ทั้งหมดหลังจากได้สิทธิ์แล้ว
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                videoDevices = devices.filter(d => d.kind === 'videoinput');
+            }
+
+            let constraints = { video: { facingMode: "environment" } };
+
+            // 2. ระบบค้นหาเลนส์ 1x อัตโนมัติ
+            if (id) {
+                // ถ้ามีการกดปุ่มสลับกล้อง ให้ใช้ ID เลนส์ที่กดเลือก
+                constraints = { video: { deviceId: { exact: id } } };
+            } else if (videoDevices.length > 0) {
+                // ค้นหากล้องหลังที่ "ไม่มี" คำว่า Ultra / Wide / กว้าง
+                let bestCam = videoDevices.find(d => 
+                    (d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('หลัง')) && 
+                    !d.label.toLowerCase().includes('ultra') && 
+                    !d.label.toLowerCase().includes('wide') &&
+                    !d.label.toLowerCase().includes('กว้าง') &&
+                    !d.label.toLowerCase().includes('0.5')
+                );
+
+                // เผื่อมือถือบางรุ่นไม่ได้ตั้งชื่อเลนส์ชัดเจน ให้ดึงกล้องหลังตัวสุดท้ายมาใช้ (มักจะเป็นเลนส์ 1x)
+                if (!bestCam) {
+                    const backCams = videoDevices.filter(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('หลัง'));
+                    if (backCams.length > 0) bestCam = backCams[backCams.length - 1]; 
+                }
+
+                // ถ้าเจอเลนส์ที่เหมาะสม ให้ล็อก ID เลนส์นั้นเลย
+                if (bestCam) {
+                    constraints = { video: { deviceId: { exact: bestCam.deviceId } } };
+                    // อัปเดต Index ให้ตรง เผื่อผู้ใช้กดปุ่มสลับกล้อง จะได้วนลูปต่อได้ถูกต้อง
+                    currentCameraIndex = videoDevices.findIndex(d => d.deviceId === bestCam.deviceId);
+                }
+            }
+
+            // 3. เปิดกล้องด้วยเลนส์ที่เลือกไว้
             videoStream = await navigator.mediaDevices.getUserMedia(constraints);
             document.getElementById('video').srcObject = videoStream;
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            videoDevices = devices.filter(d => d.kind === 'videoinput');
-        } catch (err) { alert("เปิดกล้องไม่ได้"); }
+
+        } catch (err) { 
+            console.error(err);
+            alert("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง"); 
+        }
     }
 
     function switchCamera() {
