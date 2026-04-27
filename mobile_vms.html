@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>VMS Mobile - ระบบจัดการผู้มาติดต่อ</title>
     <!-- Load AI Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -46,9 +46,16 @@
         /* --- Main Layout --- */
         #main-app { display: none; flex-direction: column; height: 100%; }
 
+		/* ปรับ Header ให้หลบรอยบากและ Dynamic Island อัตโนมัติ */
         header {
-            background: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10;
+            background: white; 
+            /* ใช้ env() ดึงค่าระยะปลอดภัยของระบบ iOS/Android มาบวกเพิ่มกับ padding เดิม */
+            padding: calc(12px + env(safe-area-inset-top)) 20px 12px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            z-index: 10;
         }
         header h1 { font-size: 18px; margin: 0; color: var(--primary); }
 
@@ -229,9 +236,26 @@
 
     let videoStream, currentCameraIndex = 0, videoDevices = [], capturedBase64 = "", currentFaceDescriptor = [], isAIReady = false;
 
-    // --- Authentication ---
+	// --- Authentication ---
     window.onload = () => {
-        if (sessionStorage.getItem("vms_auth") === "true") showApp();
+        // 1. เช็คสถานะการล็อกอิน
+        if (sessionStorage.getItem("vms_auth") === "true") {
+            showApp();
+        }
+        // 2. ระบบกด Enter เพื่อล็อกอิน
+        const checkEnter = (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault(); // ป้องกันคีย์บอร์ดเด้งรีเฟรชหน้าจอ               
+                // สั่งซ่อนคีย์บอร์ดมือถือลงไป (เพื่อไม่ให้บังจอตอนกำลังโหลด)
+                document.getElementById('loginUsername').blur();
+                document.getElementById('loginPassword').blur();                
+                doLogin(); // เรียกฟังก์ชันล็อกอิน
+            }
+        };
+        const userInput = document.getElementById('loginUsername');
+        const passInput = document.getElementById('loginPassword');        
+        if(userInput) userInput.addEventListener("keypress", checkEnter);
+        if(passInput) passInput.addEventListener("keypress", checkEnter);
     };
 
     async function doLogin() {
