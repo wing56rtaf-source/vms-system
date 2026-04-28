@@ -269,7 +269,7 @@
     btn.disabled = true;
 
     try {
-      const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "login", username: user, password: pass }) });
+      const res = await fetch(API_URL, { method: "POST", body: encryptPayload({ action: "login", username: user, password: pass }) });
       const result = await res.json();
 
       if (result.status === "success") {
@@ -422,7 +422,7 @@
     if (!det) return alert("ไม่พบใบหน้า");
 
     try {
-	  const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ 
+	  const res = await fetch(API_URL, { method: "POST", body: encryptPayload({ 
 		  action: "find_user_by_face", 
 		  faceDescriptor: Array.from(det.descriptor),
 		  token: sessionStorage.getItem("vms_token") // 🔑 แนบกุญแจ
@@ -450,7 +450,7 @@
 	data.token = sessionStorage.getItem("vms_token"); // 🔑 แนบกุญแจ
     document.getElementById('status').innerText = "⏳ บันทึกข้อมูล...";
     try {
-      const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(data) });
+      const res = await fetch(API_URL, { method: "POST", body: encryptPayload(data) });
       const result = await res.json();
       if (result.status === "success") {
         if (action === 'checkin') { document.body.style.backgroundColor = result.isKnownUser ? "#dcfce7" : "#fef3c7"; alert(result.isKnownUser ? "🟢 เคยเข้าพื้นที่แล้ว" : "🟡 ไม่เคยเข้าพื้นที่"); } 
@@ -488,7 +488,7 @@
     document.getElementById('status').innerText = "⏳ ค้นหา...";
 	payload.token = sessionStorage.getItem("vms_token"); // 🔑 แนบกุญแจ
     try {
-      const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+      const res = await fetch(API_URL, { method: "POST", body: encryptPayload(payload) });
       const result = await res.json();
       if (result.status === "success") {
         document.getElementById('resName').innerText = result.fullName; document.getElementById('resId').innerText = result.idCard;
@@ -521,7 +521,7 @@
       // 2. ส่งใบหน้าพร้อม Token ไปตรวจสอบที่ Google Script
       const res = await fetch(API_URL, { 
         method: "POST", 
-        body: JSON.stringify({ 
+        body: encryptPayload({ 
           action: "find_user_by_face", 
           faceDescriptor: Array.from(det.descriptor),
           token: sessionStorage.getItem("vms_token") 
@@ -550,6 +550,20 @@
       alert("เกิดข้อผิดพลาดในการเชื่อมต่อ"); 
     }
   }
+  // --- กุญแจลับ (ต้องตรงกับฝั่ง Google Script) ---
+    const SECRET_KEY = "VMS_i_sus_password_goo_ni";
+
+    // --- ฟังก์ชันเข้ารหัสข้อมูลก่อนส่ง (Encrypt Payload) ---
+    function encryptPayload(payloadObj) {
+        const str = JSON.stringify(payloadObj);
+        const encoded = encodeURIComponent(str); // แปลงภาษาไทยให้ปลอดภัย
+        let result = "";
+        for(let i = 0; i < encoded.length; i++) {
+            // ทำการเข้ารหัสสลับบิต (XOR)
+            result += String.fromCharCode(encoded.charCodeAt(i) ^ SECRET_KEY.charCodeAt(i % SECRET_KEY.length));
+        }
+        return btoa(result); // แปลงเป็น Base64
+    }
 </script>
 </body>
 </html>
