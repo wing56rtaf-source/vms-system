@@ -348,8 +348,16 @@
     document.getElementById('status').innerText = "⏳ กำลังโหลดโมเดล AI...";
     try {
 	  // ✨ 1. บังคับให้ AI ใช้การ์ดจอ (WebGL) ในการประมวลผลให้เร็วที่สุด ✨
-      await faceapi.tf.setBackend('webgl');
-      await faceapi.tf.ready(); // รอให้การ์ดจอเตรียมพร้อม
+      try {
+        await faceapi.tf.setBackend('webgl');
+		await faceapi.tf.ready();
+		console.log("ใช้งานโหมด: GPU (WebGL)");
+	  } catch (gpuError) {
+		// ถ้าเครื่องผู้ใช้ไม่มีการ์ดจอ หรือ WebGL พัง ให้สลับมาใช้ CPU แทนเนียนๆ
+		console.warn("ไม่รองรับ WebGL, สลับไปใช้โหมด CPU เบื้องต้น");
+		await faceapi.tf.setBackend('cpu');
+		await faceapi.tf.ready();
+	  }
       await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL), faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)]);
       isAIReady = true;
       document.getElementById('status').innerText = "✅ ระบบกล้องและ AI พร้อมใช้งาน";
