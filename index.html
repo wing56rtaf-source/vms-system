@@ -204,6 +204,13 @@
 </div>
 
 <script>
+  // 📱 --- ระบบ Auto-Redirect ตรวจจับมือถือ --- 📱
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+    // ถ้าพบว่าเป็นมือถือหรือแท็บเล็ต ให้เด้งไปที่ไฟล์มือถือทันที
+    window.location.href = "mobile_vms.html";
+  }
+  // ------------------------------------------
+
   // 🔴 อย่าลืมเปลี่ยน URL ตรงนี้นะครับ! 🔴
   const API_URL = "https://script.google.com/macros/s/AKfycbz-xVzLgx_xYmjkmdy_nwLf0mIJjGEWYznv8o374DK5QO-QXioo5oRK-f-OlsempjzE/exec"; 
 

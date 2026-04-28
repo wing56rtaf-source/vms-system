@@ -230,6 +230,12 @@
 </div>
 
 <script>
+	// 💻 --- ระบบ Auto-Redirect ตรวจจับ PC --- 💻
+    if (!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        window.location.href = "index.html";
+    }
+    // ------------------------------------------
+	
     // 🔴 เปลี่ยนเป็น URL ของคุณ 🔴
     const API_URL = "https://script.google.com/macros/s/AKfycbz-xVzLgx_xYmjkmdy_nwLf0mIJjGEWYznv8o374DK5QO-QXioo5oRK-f-OlsempjzE/exec";
 
