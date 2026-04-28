@@ -347,6 +347,9 @@
     const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
     document.getElementById('status').innerText = "⏳ กำลังโหลดโมเดล AI...";
     try {
+	  // ✨ 1. บังคับให้ AI ใช้การ์ดจอ (WebGL) ในการประมวลผลให้เร็วที่สุด ✨
+      await faceapi.tf.setBackend('webgl');
+      await faceapi.tf.ready(); // รอให้การ์ดจอเตรียมพร้อม
       await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL), faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)]);
       isAIReady = true;
       document.getElementById('status').innerText = "✅ ระบบกล้องและ AI พร้อมใช้งาน";
@@ -385,7 +388,13 @@
     preview.src = capturedBase64; preview.style.display = "block";
     
     document.getElementById('status').innerText = "⏳ วิเคราะห์โครงหน้า...";
-    const det = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+    //const det = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+	// ✨ เป็นแบบนี้ (เพิ่ม inputSize และ scoreThreshold):
+	const options = new faceapi.TinyFaceDetectorOptions({ 
+		inputSize: 224,        // ปรับลดจาก 416 เหลือ 224 หรือ 160 (ยิ่งน้อยยิ่งเร็ว)
+		scoreThreshold: 0.5    // ความมั่นใจว่าใช่หน้าคนแน่ๆ (0.5 คือ 50%)
+	});
+	const det = await faceapi.detectSingleFace(canvas, options).withFaceLandmarks().withFaceDescriptor();
     if (det) { currentFaceDescriptor = Array.from(det.descriptor); document.getElementById('status').innerText = "✅ ตรวจพบใบหน้า"; } 
     else { alert("ไม่พบใบหน้า"); currentFaceDescriptor = []; preview.style.border = "4px solid var(--danger)"; }
   }
@@ -395,7 +404,13 @@
     const canvas = document.getElementById('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     canvas.getContext('2d').drawImage(video, 0, 0);
     document.getElementById('status').innerText = "⏳ ค้นหาใบหน้า...";
-    const det = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+    //const det = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+	// ✨ เป็นแบบนี้ (เพิ่ม inputSize และ scoreThreshold):
+	const options = new faceapi.TinyFaceDetectorOptions({ 
+		inputSize: 224,        // ปรับลดจาก 416 เหลือ 224 หรือ 160 (ยิ่งน้อยยิ่งเร็ว)
+		scoreThreshold: 0.5    // ความมั่นใจว่าใช่หน้าคนแน่ๆ (0.5 คือ 50%)
+	});
+	const det = await faceapi.detectSingleFace(canvas, options).withFaceLandmarks().withFaceDescriptor();
     if (!det) return alert("ไม่พบใบหน้า");
 
     try {
@@ -444,7 +459,13 @@
     if (!isAIReady) return;
     const canvas = document.getElementById('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     canvas.getContext('2d').drawImage(video, 0, 0);
-    const det = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+    //const det = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+	// ✨ เป็นแบบนี้ (เพิ่ม inputSize และ scoreThreshold):
+	const options = new faceapi.TinyFaceDetectorOptions({ 
+		inputSize: 224,        // ปรับลดจาก 416 เหลือ 224 หรือ 160 (ยิ่งน้อยยิ่งเร็ว)
+		scoreThreshold: 0.5    // ความมั่นใจว่าใช่หน้าคนแน่ๆ (0.5 คือ 50%)
+	});
+	const det = await faceapi.detectSingleFace(canvas, options).withFaceLandmarks().withFaceDescriptor();
     if (!det) return alert("ไม่พบใบหน้า");
     fetchSearchData({ action: "search_history", faceDescriptor: Array.from(det.descriptor) });
   }
@@ -480,7 +501,13 @@
     canvas.getContext('2d').drawImage(video, 0, 0);    
     document.getElementById('status').innerText = "⏳ กำลังเปรียบเทียบใบหน้ากับฐานข้อมูล...";    
     // 1. วิเคราะห์ใบหน้าจากกล้อง
-    const det = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();    
+    //const det = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();    
+	// ✨ เป็นแบบนี้ (เพิ่ม inputSize และ scoreThreshold):
+	const options = new faceapi.TinyFaceDetectorOptions({ 
+		inputSize: 224,        // ปรับลดจาก 416 เหลือ 224 หรือ 160 (ยิ่งน้อยยิ่งเร็ว)
+		scoreThreshold: 0.5    // ความมั่นใจว่าใช่หน้าคนแน่ๆ (0.5 คือ 50%)
+	});
+	const det = await faceapi.detectSingleFace(canvas, options).withFaceLandmarks().withFaceDescriptor();
     if (!det) return alert("ไม่พบใบหน้า กรุณามองตรงมาที่กล้องครับ");
     try {
       // 2. ส่งใบหน้าพร้อม Token ไปตรวจสอบที่ Google Script
